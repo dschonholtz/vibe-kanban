@@ -382,15 +382,4 @@ impl McpServer {
             is_orchestrator_session,
         }
     }
-
-    fn serialize_execution_process(
-        execution_process: &ExecutionProcess,
-    ) -> Result<serde_json::Value, super::ToolError> {
-        serde_json::to_value(execution_process).map_err(|error| {
-            super::ToolError::new(
-                "Failed to serialize execution process response",
-                Some(error.to_string()),
-            )
-        })
-    }
 }

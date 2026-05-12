@@ -1,7 +1,10 @@
 use std::str::FromStr;
 
 use api_types::{Issue, ListProjectStatusesResponse, ProjectStatus};
-use db::models::{execution_process::ExecutionProcessStatus, tag::Tag};
+use db::models::{
+    execution_process::{ExecutionProcess, ExecutionProcessStatus},
+    tag::Tag,
+};
 use executors::executors::BaseCodingAgent;
 use regex::Regex;
 use rmcp::{
@@ -381,6 +384,17 @@ impl McpServer {
             ExecutionProcessStatus::Killed => "killed",
         }
     }
+
+    fn serialize_execution_process(
+        execution_process: &ExecutionProcess,
+    ) -> Result<serde_json::Value, ToolError> {
+        serde_json::to_value(execution_process).map_err(|error| {
+            ToolError::new(
+                "Failed to serialize execution process response",
+                Some(error.to_string()),
+            )
+        })
+    }
 }
 
 #[cfg(test)]
@@ -432,6 +446,8 @@ mod tests {
         let actual = tool_names(McpServer::global_mode_router());
 
         assert!(actual.contains("list_workspaces"));
+        assert!(actual.contains("execute_issue"));
+        assert!(actual.contains("sync_project_executions"));
         assert!(actual.contains("delete_workspace"));
         assert!(!actual.contains("output_markdown"));
     }

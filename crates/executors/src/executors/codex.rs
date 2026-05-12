@@ -24,6 +24,25 @@ pub fn codex_home() -> Option<PathBuf> {
     dirs::home_dir().map(|home| home.join(".codex"))
 }
 
+fn codex_home_from_value(codex_home: &str) -> Option<PathBuf> {
+    (!codex_home.trim().is_empty()).then(|| PathBuf::from(codex_home))
+}
+
+fn codex_home_for_execution(env: &ExecutionEnv, cmd: &CmdOverrides) -> Option<PathBuf> {
+    cmd.env
+        .as_ref()
+        .and_then(|profile_env| profile_env.get("CODEX_HOME").map(String::as_str))
+        .or_else(|| env.get("CODEX_HOME").map(String::as_str))
+        .and_then(codex_home_from_value)
+        .or_else(codex_home)
+}
+
+fn has_logged_in_codex_session(env: &ExecutionEnv, cmd: &CmdOverrides) -> bool {
+    codex_home_for_execution(env, cmd)
+        .map(|home| home.join("auth.json").exists())
+        .unwrap_or(false)
+}
+
 pub(crate) fn resolve_model(model: Option<&str>) -> (Option<&str>, bool) {
     match model.and_then(|m| m.strip_suffix("-fast")) {
         Some(base) => (Some(base), true),
@@ -666,6 +685,13 @@ impl Codex {
         env.clone()
             .with_profile(&self.cmd)
             .apply_to_command(&mut process);
+
+        if has_logged_in_codex_session(env, &self.cmd) {
+            process.env_remove("OPENAI_API_KEY");
+            tracing::info!(
+                "OPENAI_API_KEY removed from Codex environment because a logged-in Codex session was detected"
+            );
+        }
 
         let mut child = process.group_spawn_no_window()?;
 
